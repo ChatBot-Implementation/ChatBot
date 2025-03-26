@@ -46,7 +46,7 @@ async def chat(request: Request, message: Message):
     user_info = verify_google_token(token)  # Validate token
 
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(message.message)
         return {"response": response.text}
     except Exception as e:
