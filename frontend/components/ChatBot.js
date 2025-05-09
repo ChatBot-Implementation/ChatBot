@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { FaPaperPlane } from "react-icons/fa";
+import { v4 as uuidv4 } from "uuid";
 
 export default function Chat() {
   const [messages, setMessages] = useState([]);
@@ -14,54 +15,103 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  const sendMessage = async (questionText = input) => {
+    if (!questionText.trim()) return;
 
-    const userMessage = { sender: "user", text: input };
-    setMessages([...messages, userMessage]);
+    const userMessage = { sender: "user", text: questionText };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
 
     try {
       const token = localStorage.getItem("token");
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: questionText }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch response from server");
-      }
+      if (!res.ok) throw new Error("Failed to fetch response from server");
 
       const data = await res.json();
-      const botMessage = { sender: "bot", text: data.response };
-      setMessages([...messages, userMessage, botMessage]);
+      const botMessage = {
+        sender: "bot",
+        text: data.response,
+        suggestions: data.suggestedQuestions || [], // make sure this field exists in backend
+      };
+      setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error("Error sending message:", error);
-      setMessages([...messages, userMessage, { sender: "bot", text: "Error connecting to server" }]);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "bot", text: "Error connecting to server" },
+      ]);
     }
-
-    setInput("");
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-[#f0f8ff]">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col border border-gray-200" style={{ height: "75vh" }}>
-        {/* Chat Header */}
+    <div className="flex h-screen bg-[#f0f8ff]">
+      {/* Sidebar for Chat History */}
+      <div className="w-1/4 bg-white p-4 shadow-md overflow-y-auto border-r border-gray-200">
+        <h2 className="text-lg font-semibold mb-4">Chat History</h2>
+        {/* Chat history groups */}
+        <div className="mb-4">
+          <h3 className="text-sm text-gray-500 mb-1">Today</h3>
+          <ul>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">Integrate MySQL with Chatbot</li>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">Chatbot Schema Design</li>
+          </ul>
+        </div>
+        <div className="mb-4">
+          <h3 className="text-sm text-gray-500 mb-1">Yesterday</h3>
+          <ul>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">React Chat Component Explanation</li>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">What is a Token</li>
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-sm text-gray-500 mb-1">Previous 7 Days</h3>
+          <ul>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">FastAPI Google Chatbot Integration</li>
+            <li className="cursor-pointer hover:bg-gray-100 p-2 rounded">Java Developer Introduction</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Main Chat UI */}
+      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 m-4">
+        {/* Header */}
         <div className="bg-white text-center py-4 text-lg font-semibold border-b border-gray-300">
           <span className="text-gray-700">Hi, I'm AI Chatbot.</span>
           <p className="text-sm text-gray-500">How can I help you today?</p>
         </div>
 
-        {/* Chat Messages */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3" style={{ maxHeight: "calc(75vh - 130px)" }}>
+        {/* Messages */}
+        <div className="flex-1 p-4 overflow-y-auto space-y-3" style={{ maxHeight: "calc(100vh - 180px)" }}>
           {messages.map((msg, index) => (
-            <div key={index} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`p-3 rounded-lg max-w-xs ${msg.sender === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"}`}>
+            <div key={index} className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}>
+              <div className={`p-3 rounded-lg max-w-xs shadow-md ${
+                msg.sender === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"
+              }`}>
                 <p className="whitespace-pre-wrap">{msg.text}</p>
               </div>
+
+              {/* Follow-up question buttons */}
+              {msg.sender === "bot" && msg.suggestions && msg.suggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {msg.suggestions.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => sendMessage(suggestion)}
+                      className="text-sm px-3 py-1 bg-gray-300 hover:bg-blue-400 hover:text-white rounded-full transition"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
@@ -78,7 +128,7 @@ export default function Chat() {
             onKeyPress={(e) => e.key === "Enter" && sendMessage()}
           />
           <button
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             className="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none shadow-lg"
           >
             <FaPaperPlane />
