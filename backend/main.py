@@ -33,7 +33,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 db = mysql.connector.connect(
     host="localhost",
     user="root",  
-    password="batman1104", 
+    password="", 
     database="chatbot_db"
 )
 cursor = db.cursor(dictionary=True)
